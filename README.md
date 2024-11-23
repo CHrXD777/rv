@@ -73,12 +73,12 @@ function rwhataday {
 
 其他的子命令大概都很明白了。
 
-#Roadmap
+# Roadmap
 1. 可能会加定时提醒功能(win系统下，在右下角发送通知)
 2. 交互处理得更有趣一些，比如老科幻中人工智能的感觉
 3. 不会加入计时功能
 
-#ScreenShot
+# ScreenShot
 ![oo](./screenshot/oo.PNG)
 ![ii](./screenshot/ii.PNG)
 
