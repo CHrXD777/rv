@@ -1,0 +1,8 @@
+timestamp_format = "%H:%M"
+wake_up_time = 07:00:00
+had_breakfast = false
+lunch_time = "12:30"
+dinner_time = "18:00"
+sleep_time = "23:00"
+a_hours = 4
+b_hours = 2
