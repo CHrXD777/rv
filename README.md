@@ -1,6 +1,7 @@
 # rv
-Time and Task Management Tools , Normal Vital Signs Maintenance Tools
-时间和任务管理工具，正常生命体征维持工具
+- Time and Task Management Tools , Normal Vital Signs Maintenance Tools
+
+- 时间和任务管理工具，正常生命体征维持工具
 
 写这个程序是为了能通过尽可能简单的方式多注意自己的生活，保持相对还算健康的状态
 
@@ -79,4 +80,5 @@ function rwhataday {
 
 #ScreenShot
 ![oo](./screenshot/oo.PNG)
+![ii](./screenshot/ii.PNG)
 
