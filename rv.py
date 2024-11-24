@@ -96,7 +96,7 @@ def od():
 def ox():
     """将当前任务状态更新为完成，并将下一任务设置为正在处理"""
     if not os.path.exists(TODO_FILE):
-        console.print(f"[red]文件 {TODO_FILE} 不存在！[/red]")
+        console.print(f"[red]文件 {TODO_FILE} 不存在。[/red]")
         return
 
     with open(TODO_FILE, "r+", encoding="utf-8") as f:
@@ -127,7 +127,7 @@ def ox():
                 for idx, next_idx in enumerate(next_indices, start=1):
                     task_text = content[next_idx].strip().replace("(>)", "").strip()
                     console.print(f"[cyan]{idx}. {task_text}[/cyan]")
-                choice = click.prompt("请输入序号", type=int)
+                choice = click.prompt("请输入序号\n>", type=int)
                 next_task = content[next_indices[choice - 1]].strip().replace("(>)", "").strip()
                 next_idx = next_indices[choice - 1]
 
@@ -142,7 +142,7 @@ def ox():
             return
 
         console.print("\n".join(changes))
-        confirm = click.confirm("确认是否更改？", default=True)
+        confirm = click.confirm("确认是否更改？\n>", default=True)
 
         if confirm:
             # 更新文件内容
@@ -174,9 +174,9 @@ def oo():
     if os.path.exists(TODO_FILE):
         with open(TODO_FILE, "r", encoding="utf-8") as f:
             todo_content = f.read()
-            parse_and_display_todo(todo_content)
+            parse_and_display_norg("todo", todo_content)
     else:
-        console.print(f"[red]文件 {TODO_FILE} 不存在！(先使用rv od创建)[/red]")
+        console.print(f"[red]文件 {TODO_FILE} 不存在。(先使用rv od创建)[/red]")
 
 #
 def extract_timestamp(todo_text):
@@ -256,9 +256,12 @@ def parse_and_display_todo(content):
                 console.print(f"🟪 {todo_text:<20} [magenta]---next[/magenta]")
             else:
                 console.print(todo_text)
+        elif "^EOP^" in line:
+            break
         else:
             # 默认输出段落标题或其他文本
             console.print(line)
+        
 
 
 ### TODO显示
@@ -269,12 +272,13 @@ def parse_and_display_todo(content):
 @cli.command()
 def igc():
     """通过询问和编辑生成每日时间记录配置文件"""
-    console.print("[cyan]初始化每日时间配置...[/cyan]")
+    console.print("[cyan]Greetings, human! 🤖\n")
 
     # 获取基本信息
-    wake_up_time = click.prompt("今天几点醒来？（格式不限，例如：七点、7:00、0700）")
-    had_breakfast = click.confirm("是否吃早餐？", default=False)
-    lunch_time = click.prompt("午饭打算几点吃？（格式不限，例如：十二点半、12:30）")
+    wake_up_time = click.prompt("今天几点醒来？（七点、7:00、0700）\n>")
+    sleep_duration = click.prompt("昨晚睡眠时长？（7h）\n>")
+    had_breakfast = click.confirm("是否吃早餐？\n>", default=False)
+    lunch_time = click.prompt("计划午餐时间？（十二点半、12:30、1230）\n>")
 
     # 计算推荐晚饭时间
     lunch_time_obj = parse_time_input(lunch_time)
@@ -285,11 +289,11 @@ def igc():
             (datetime.combine(datetime.today(), lunch_time_obj) + timedelta(hours=5.5) + timedelta(minutes=30)).strftime("%H:%M"),
         ]
         dinner_time = click.prompt(
-            f"推荐的晚饭时间: {', '.join(suggested_dinner_times)}，选择或输入其他时间",
+            f"建议的晚餐时间: {', '.join(suggested_dinner_times)}，或选择其他时间\n>",
             default=suggested_dinner_times[1],
         )
     else:
-        console.print("[yellow]无法解析午饭时间，晚饭时间将为默认时间(17:30)[/yellow]")
+        console.print("[yellow]无法解析午餐时间，晚餐时间将为默认时间(17:30)[/yellow]")
         dinner_time = "17:30"
     
     
@@ -302,12 +306,13 @@ def igc():
     # 获取时间戳
     # time_stamp = datetime.now().strftime('%Y-%m-%D %H:%M:%S')
     # 获取用户目标时长
-    a_hours = click.prompt("目标 A (积累向) 预估时长（小时）", type=int)
-    b_hours = click.prompt("目标 B (消耗向) 预估时长（小时）", type=int)
+    a_hours = click.prompt("目标 A (积累向) 预估时长（小时）\n>", type=int)
+    b_hours = click.prompt("目标 B (消耗向) 预估时长（小时）\n>", type=int)
 
     # 保存到 config.toml
     config_data = {
         "timestamp_format": "%H:%M",
+        "sleep_duration": sleep_duration,
         "wake_up_time": wake_up_time_obj,
         "had_breakfast": had_breakfast,
         "lunch_time": lunch_time,
@@ -440,7 +445,7 @@ def ia(time_str, task_description):
 
     # 检查文件是否存在
     if not os.path.exists(time_file):
-        console.print(f"[red]文件 {time_file} 不存在，请先运行 ig 生成文件！[/red]")
+        console.print(f"[red]文件 {time_file} 不存在，请先运行 ig 生成文件。[/red]")
         return
 
     # 从 config.toml 中加载目标时间
@@ -455,7 +460,7 @@ def ia(time_str, task_description):
     try:
         time_minutes = parse_time_str(time_str)
     except ValueError:
-        console.print("[red]时间格式无效，请使用 +45m 或 -30m 等格式！[/red]")
+        console.print("[red]时间格式无效，请使用 +45m 或 _30m 等格式。[/red]")
         return
 
     # 当前时间戳
@@ -513,14 +518,14 @@ def ia(time_str, task_description):
 
 def parse_time_str(time_str):
     """
-    解析时间字符串 (+45m 或 -30m) 为分钟整数
+    解析时间字符串 (+45m 或 _30m) 为分钟整数
     """
     if not (time_str.startswith("+") or time_str.startswith("_")):
-        raise ValueError("时间字符串必须以 + 或 _ 开头！")
+        raise ValueError("时间字符串必须以 + 或 _ 开头。")
     
     time_str = time_str[1:]  # 去掉前缀符号
     if not time_str.endswith("m"):
-        raise ValueError("时间字符串必须以 'm' 结尾！")
+        raise ValueError("时间字符串必须以 'm' 结尾。")
 
     return int(time_str[:-1])
 
@@ -561,75 +566,15 @@ def ii():
     解析并展示当日的 time.norg 文件内容
     """
     today_date = datetime.now().strftime("%Y%m%d")
-    time_file = f"{today_date}_time.norg"
+    time_file = f"{folder}/{today_date}_time.norg"
 
     if not os.path.exists(time_file):
-        console.print(f"[red]文件 {time_file} 不存在！请先运行 ig 生成文件。[/red]")
+        console.print(f"[red]文件 {time_file} 不存在。请先运行 ig 生成文件。[/red]")
         return
 
     with open(time_file, "r", encoding="utf-8") as f:
-        content = f.readlines()
-
-    routine = []
-    habits = []
-    schedule = []
-    asec_entries = []
-    bsec_entries = []
-    asec_target, bsec_target = 0, 0
-    asec_total, bsec_total = 0, 0
-
-    # 解析文件内容
-    section = None
-    for line in content:
-        stripped = line.strip()
-
-        # 检测段落标题
-        if stripped.startswith("routine"):
-            section = "routine"
-        elif stripped.startswith("habits"):
-            section = "habit"
-        elif stripped.startswith("schedule"):
-            section = "schedule"
-        elif stripped.startswith("Asec("):
-            section = "asec"
-            asec_target = parse_target_time(stripped)
-        elif stripped.startswith("Bsec("):
-            section = "bsec"
-            bsec_target = parse_target_time(stripped)
-        elif stripped.startswith("- ("):
-            # 常规任务
-            if section == "routine":
-                routine.append(parse_task_line(stripped))
-            elif section == "habit":
-                habits.append(parse_task_line(stripped))
-        elif stripped.startswith("午") or stripped.startswith("晚"):
-            if section == "schedule":
-                schedule.append(stripped)
-        elif section == "asec" and stripped.startswith("^   "):
-            asec_entries.append(stripped)
-            asec_total += parse_existing_time(stripped)
-        elif section == "bsec" and stripped.startswith("^   "):
-            bsec_entries.append(stripped)
-            bsec_total += parse_existing_time(stripped)
-
-    # 显示结果
-    console.print("\n[bold underline]Routine:[/bold underline]")
-    display_tasks(routine)
-
-    console.print("\n[bold underline]Habits:[/bold underline]")
-    display_tasks(habits)
-
-    console.print("\n[bold underline]Schedule:[/bold underline]")
-    display_schedule(schedule)
-
-    console.print("\n[bold underline]Asec:[/bold underline]")
-    display_time_entries(asec_entries)
-    display_summary(asec_total, asec_target, "Asec")
-
-    console.print("\n[bold underline]Bsec:[/bold underline]")
-    display_time_entries(bsec_entries)
-    display_summary(bsec_total, bsec_target, "Bsec")
-
+        content = f.read()
+        parse_and_display_norg("time",content)
 
 def parse_task_line(line):
     """
@@ -723,6 +668,9 @@ def whataday():
     """
     归档当日的todo.norg和time.norg
     """
+    if not (os.path.exists(TIME_FILE) or os.path.exists(TODO_FILE)):
+        console.print(f"[red]文件 {TIME_FILE} 或 {TODO_FILE}不存在。归档失败！[/red]")
+        return
     today_date = datetime.now().strftime("%Y%m%d")
     archive_folder = "./A"
     archive_file = os.path.join(archive_folder, f"{today_date}.a.norg")
@@ -731,7 +679,7 @@ def whataday():
     os.makedirs(archive_folder, exist_ok=True)
     file_paths = [TODO_FILE, TIME_FILE]
     # 创建一个新的文本文件
-    combined_archive_file = open(archive_file, "a", encoding='utf-8')
+    combined_archive_file = open(archive_file, "w", encoding='utf-8')
 
     # 逐个将文本文件追加到新文件中
     combined_archive_file.write("TODO list:\n")
@@ -740,7 +688,9 @@ def whataday():
     combined_archive_file.write(content)
     file.close()
 
-    combined_archive_file.write("\n\n\nTIME logs:\n")
+    combined_archive_file.write("\n\n^EOP^")
+
+    combined_archive_file.write("\n\nTIME logs:\n")
     file = open(TIME_FILE, "r", encoding='utf-8')
     content = file.read()
     combined_archive_file.write(content)
@@ -760,6 +710,10 @@ def whataday():
         console.print("[yellow]Temporary data kept.[/yellow]")
         console.print("summary is gened, check ./A folder(open folder with command 'rv archive')")
 
+    with open(archive_file, "r", encoding="utf-8") as f:
+        content = f.read()
+        parse_and_display_norg("A",content)
+    
 @cli.command
 def archive():
     """打开归档文件夹"""
@@ -794,6 +748,80 @@ def get_time_file_name():
     today = datetime.now().strftime("%Y%m%d")
     return f"{today}_time.norg"
 
+def parse_and_display_time(content):
+    routine = []
+    habits = []
+    schedule = []
+    asec_entries = []
+    bsec_entries = []
+    asec_target, bsec_target = 0, 0
+    asec_total, bsec_total = 0, 0
 
+    lines = content.splitlines()
+    # 解析文件内容
+    section = None
+    for line in lines:
+        stripped = line.strip()
+
+        # 检测段落标题
+        if stripped.startswith("routine"):
+            section = "routine"
+        elif stripped.startswith("habits"):
+            section = "habit"
+        elif stripped.startswith("schedule"):
+            section = "schedule"
+        elif stripped.startswith("Asec("):
+            section = "asec"
+            asec_target = parse_target_time(stripped)
+        elif stripped.startswith("Bsec("):
+            section = "bsec"
+            bsec_target = parse_target_time(stripped)
+        elif stripped.startswith("- ("):
+            # 常规任务
+            if section == "routine":
+                routine.append(parse_task_line(stripped))
+            elif section == "habit":
+                habits.append(parse_task_line(stripped))
+        elif stripped.startswith("午") or stripped.startswith("晚"):
+            if section == "schedule":
+                schedule.append(stripped)
+        elif section == "asec" and stripped.startswith("^   "):
+            asec_entries.append(stripped)
+            asec_total += parse_existing_time(stripped)
+        elif section == "bsec" and stripped.startswith("^   "):
+            bsec_entries.append(stripped)
+            bsec_total += parse_existing_time(stripped)
+
+    # 显示结果
+    console.print("\n[bold underline]Routine:[/bold underline]")
+    display_tasks(routine)
+
+    console.print("\n[bold underline]Habits:[/bold underline]")
+    display_tasks(habits)
+
+    console.print("\n[bold underline]Schedule:[/bold underline]")
+    display_schedule(schedule)
+
+    console.print("\n[bold underline]Asec:[/bold underline]")
+    display_time_entries(asec_entries)
+    display_summary(asec_total, asec_target, "Asec")
+
+    console.print("\n[bold underline]Bsec:[/bold underline]")
+    display_time_entries(bsec_entries)
+    display_summary(bsec_total, bsec_target, "Bsec")
+
+
+def parse_and_display_norg(type, content):
+
+    if type == "time":
+        console.print("\n[bold underline]TIME logs:[/bold underline]")
+        parse_and_display_time(content)
+    elif type == "todo":
+        console.print("\n[bold underline]TODO list:[/bold underline]")
+        parse_and_display_todo(content)
+    elif type == "A":
+        console.print("\n[bold underline]ARCHIVE:[/bold underline]")
+        parse_and_display_todo(content)
+        parse_and_display_time(content)
 if __name__ == "__main__":
     cli()
