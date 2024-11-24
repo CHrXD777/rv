@@ -1,9 +1,11 @@
 timestamp_format = "%H:%M"
-sleep_duration = "7.5h"
-wake_up_time = 11:30:00
+Drinking_water_target1 = "15:00"
+Drinking_water_target2 = "23:00"
+sleep_duration = "07:00"
+wake_up_time = "07:00"
 had_breakfast = false
 lunch_time = "12:30"
 dinner_time = "18:00"
-sleep_time = "03:30"
+sleep_time = "23:00"
 a_hours = 4
 b_hours = 2

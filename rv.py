@@ -3,7 +3,8 @@ import os
 import toml
 import re
 import pathlib
-from datetime import datetime, timedelta
+from parse_time_input import parse_time_input
+from datetime import datetime, timedelta, time
 from rich.console import Console
 
 
@@ -275,13 +276,13 @@ def igc():
     console.print("[cyan]Greetings, human! 🤖\n")
 
     # 获取基本信息
-    wake_up_time = click.prompt("今天几点醒来？（七点、7:00、0700）\n>")
-    sleep_duration = click.prompt("昨晚睡眠时长？（7h）\n>")
+    wake_up_time = click.prompt("今天几点醒来？(支持任何时间输入格式)\n>")
+    sleep_duration = click.prompt("昨晚睡眠时长？(支持任何时间输入格式)\n>")
     had_breakfast = click.confirm("是否吃早餐？\n>", default=False)
-    lunch_time = click.prompt("计划午餐时间？（十二点半、12:30、1230）\n>")
+    lunch_time = click.prompt("计划午餐时间？(支持任何时间输入格式)\n>")
 
     # 计算推荐晚饭时间
-    lunch_time_obj = parse_time_input(lunch_time)
+    lunch_time_obj = datetime.strptime(parse_time_input(lunch_time), "%H:%M").time()
     if lunch_time_obj:
         suggested_dinner_times = [
             (datetime.combine(datetime.today(), lunch_time_obj) + timedelta(hours=5.5) + timedelta(minutes=-30)).strftime("%H:%M"),
@@ -298,11 +299,15 @@ def igc():
     
     
     # 计算建议的睡眠时间
-    wake_up_time_obj = parse_time_input(wake_up_time)
+    wake_up_time = parse_time_input(wake_up_time)
+    wake_up_time_obj = datetime.strptime(parse_time_input(wake_up_time), "%H:%M").time()
     sleep_time = (datetime.combine(datetime.today(), wake_up_time_obj) + timedelta(hours=16)).strftime("%H:%M")
+    # 计算喝水时间
+    Drinking_water_target1 = (datetime.combine(datetime.today(), wake_up_time_obj) + timedelta(hours=8)).strftime("%H:%M")
+    Drinking_water_target2 = sleep_time
     # 格式化午餐时间
     lunch_time = lunch_time_obj.strftime("%H:%M")
-    
+    sleep_duration = parse_time_input(sleep_duration)
     # 获取时间戳
     # time_stamp = datetime.now().strftime('%Y-%m-%D %H:%M:%S')
     # 获取用户目标时长
@@ -312,8 +317,10 @@ def igc():
     # 保存到 config.toml
     config_data = {
         "timestamp_format": "%H:%M",
+        "Drinking_water_target1": Drinking_water_target1,
+        "Drinking_water_target2": Drinking_water_target2,
         "sleep_duration": sleep_duration,
-        "wake_up_time": wake_up_time_obj,
+        "wake_up_time": wake_up_time,
         "had_breakfast": had_breakfast,
         "lunch_time": lunch_time,
         "dinner_time": dinner_time,
@@ -340,21 +347,6 @@ habits:
     os.system(f"nvim {TIME_TMPL_FILE}")
 
     console.print("[green]每日时间配置已完成！rv ig将生成每日时间文件[/green]")
-
-#
-def parse_time_input(time_str):
-    """解析时间字符串并返回 datetime.time 对象"""
-    try:
-        time_str = time_str.replace("：", ":").replace("点", ":").replace("半", ":30").replace(" ", "")
-        if ":" in time_str:
-            return datetime.strptime(time_str, "%H:%M").time()
-        elif len(time_str) == 4:
-            return datetime.strptime(time_str, "%H%M").time()
-        elif len(time_str) == 2:
-            return datetime.strptime(time_str, "%H").time()
-    except ValueError:
-        console.print(f"[red]无法解析时间：{time_str}[/red]")
-        return None
 
 ## ig - tIme Gen
 @cli.command()
@@ -406,12 +398,14 @@ habits:
 {chr(10).join(habits)}
 schedule:
 {chr(10)}午餐时间：{config.get('lunch_time')}
-午休时间：建议在午餐半小时后午休10-20分钟
+午休时间：建议在午餐半小时后午休15-25分钟
 晚餐时间：{config.get('dinner_time')}
 晚睡时间：{config.get('sleep_time')}
+喝水目标：在{config.get('Drinking_water_target1')}前喝完600ml水，在{config.get('Drinking_water_target2')}前喝完另600ml水。
 {chr(10)}
 Asec({config.get('a_hours', 4)}h)
 Bsec({config.get('b_hours', 4)}h)
+Csec
 """
 
     # 写入文件
@@ -454,20 +448,29 @@ def ia(time_str, task_description):
     bsec_target_hours = config.get('b_hours', 4)
 
     # 判断时间类型 (Asec 或 Bsec)
-    time_type = "Asec" if time_str.startswith("+") else "Bsec"
-
-    # 解析时间字符串
-    try:
-        time_minutes = parse_time_str(time_str)
-    except ValueError:
-        console.print("[red]时间格式无效，请使用 +45m 或 _30m 等格式。[/red]")
-        return
+    # time_type = "Asec" if time_str.startswith("+") else "Bsec"
+    
+    if time_str.startswith("+"):
+        time_type = "Asec"
+    elif time_str.startswith("_"):
+        time_type = "Bsec"
+    elif time_str.startswith("."):
+        time_type = "Csec"
 
     # 当前时间戳
     timestamp = datetime.now().strftime("%H:%M:%S")
+    # 解析时间字符串
+    try:
+        time_minutes = parse_time_str(time_str)
+        if isinstance(time_minutes, int):
+            # 格式化新记录
+            new_entry = f"^   \t{abs(time_minutes)}min\t{task_description}\t{timestamp}\n"
+        else:
+            new_entry = f"^   \t{time_minutes}\t{task_description}\t{timestamp}\n"
+    except ValueError:
+        console.print("[red]时间格式无效，请使用 +45m 或 _30m 或 .17:30 等格式。[/red]")
+        return
 
-    # 格式化新记录
-    new_entry = f"^   \t{abs(time_minutes)}min\t{task_description}\t{timestamp}\n"
 
     with open(time_file, "r+", encoding="utf-8") as f:
         lines = f.readlines()
@@ -476,16 +479,11 @@ def ia(time_str, task_description):
         asec_total = 0
         bsec_total = 0
 
-        # 确保文件中存在 Asec 和 Bsec 块
-        # if "Asec(" not in lines:
-        #     lines.append(f"Asec({asec_target_hours}h)\n")
-        # if "Bsec(" not in lines:
-        #     lines.append(f"Bsec({bsec_target_hours}h)\n")
-
-        # 查找 Asec 和 Bsec 块位置
+        # 查找 Asec 和 Bsec 块和 Csec 块位置
         asec_start = lines.index(next(filter(lambda l: l.startswith("Asec("), lines))) + 1
         bsec_start = lines.index(next(filter(lambda l: l.startswith("Bsec("), lines))) + 1
-        
+        csec_start = lines.index(next(filter(lambda l: l.startswith("Csec"), lines))) + 1
+
         # 计算现有时间消耗
         for i in range(asec_start, len(lines)):
             if not lines[i].startswith("^   "):
@@ -500,9 +498,11 @@ def ia(time_str, task_description):
         if time_type == "Asec":
             lines.insert(asec_start, new_entry)
             asec_total += abs(time_minutes)
-        else:
+        elif time_type == "Bsec":
             lines.insert(bsec_start, new_entry)
             bsec_total += abs(time_minutes)
+        else:
+            lines.insert(csec_start, new_entry)
 
         # 更新统计信息
         update_asec_summary(lines, asec_total, asec_target_hours)
@@ -518,16 +518,21 @@ def ia(time_str, task_description):
 
 def parse_time_str(time_str):
     """
-    解析时间字符串 (+45m 或 _30m) 为分钟整数
+    解析时间字符串 (+45m 或 _30m) 为分钟整数以及.17:30为 17:30
     """
-    if not (time_str.startswith("+") or time_str.startswith("_")):
-        raise ValueError("时间字符串必须以 + 或 _ 开头。")
+    if not (time_str.startswith("+") or time_str.startswith("_") or time_str.startswith(".")):
+        raise ValueError("时间字符串必须以 +, _ 或 . 开头。")
     
-    time_str = time_str[1:]  # 去掉前缀符号
-    if not time_str.endswith("m"):
-        raise ValueError("时间字符串必须以 'm' 结尾。")
-
-    return int(time_str[:-1])
+    if time_str.startswith("+") or time_str.startswith("_"):
+        time_str = time_str[1:]  # 去掉前缀符号
+        if not time_str.endswith("m"):
+            raise ValueError("时间字符串必须以 'm' 结尾。")
+        return int(time_str[:-1])
+    else:
+        time_str = time_str[1:]  # 去掉前缀符号
+        if not re.match(r"^\d{1,2}:\d{2}$", time_str):
+            raise ValueError("时间点字符串必须符合17:30的格式。")
+        return time_str
 
 
 def update_asec_summary(lines, asec_total, asec_target_hours):
@@ -668,7 +673,7 @@ def whataday():
     """
     归档当日的todo.norg和time.norg
     """
-    if not (os.path.exists(TIME_FILE) or os.path.exists(TODO_FILE)):
+    if not (os.path.exists(TIME_FILE) and os.path.exists(TODO_FILE)):
         console.print(f"[red]文件 {TIME_FILE} 或 {TODO_FILE}不存在。归档失败！[/red]")
         return
     today_date = datetime.now().strftime("%Y%m%d")
@@ -684,11 +689,14 @@ def whataday():
     # 逐个将文本文件追加到新文件中
     combined_archive_file.write("TODO list:\n")
     file = open(TODO_FILE, "r", encoding='utf-8')
-    content = file.read()
-    combined_archive_file.write(content)
+    content = file.readlines()
+    for line in content:
+        if line.startswith("^EOP^"):
+            break
+        combined_archive_file.writelines(line)
     file.close()
 
-    combined_archive_file.write("\n\n^EOP^")
+    combined_archive_file.write("^EOP^")
 
     combined_archive_file.write("\n\nTIME logs:\n")
     file = open(TIME_FILE, "r", encoding='utf-8')
@@ -700,15 +708,15 @@ def whataday():
     combined_archive_file.close()
 
     # Confirm deletion
-    confirm_delete = click.confirm("Do you want to delete the temporary files?", default=False)
+    confirm_delete = click.confirm(f"是否删除每日临时文件？({today_date}_time.norg & todo.norg)请妥善处理todo.norg中的笔记内容", default=False)
     if confirm_delete:
         delete_file(TODO_FILE)
         delete_file(TIME_FILE)
-        console.print("[yellow]Temporary data cleared.[/yellow]")
-        console.print("summary is gened, check ./A folder(open folder with command 'rv archive')")
+        console.print("[yellow]每日临时文件已清理[/yellow]")
+        console.print(f"每日总结已生成，保存于 {folder}/A (通过'rv archive'命令打开目录)")
     else:
-        console.print("[yellow]Temporary data kept.[/yellow]")
-        console.print("summary is gened, check ./A folder(open folder with command 'rv archive')")
+        console.print("[yellow]每日临时文件保留[/yellow]")
+        console.print(f"每日总结已生成，保存于 {folder}/A (通过'rv archive'命令打开目录)")
 
     with open(archive_file, "r", encoding="utf-8") as f:
         content = f.read()
@@ -754,6 +762,7 @@ def parse_and_display_time(content):
     schedule = []
     asec_entries = []
     bsec_entries = []
+    csec_entries = []
     asec_target, bsec_target = 0, 0
     asec_total, bsec_total = 0, 0
 
@@ -776,13 +785,15 @@ def parse_and_display_time(content):
         elif stripped.startswith("Bsec("):
             section = "bsec"
             bsec_target = parse_target_time(stripped)
+        elif stripped.startswith("Csec"):
+            section = "csec"
         elif stripped.startswith("- ("):
             # 常规任务
             if section == "routine":
                 routine.append(parse_task_line(stripped))
             elif section == "habit":
                 habits.append(parse_task_line(stripped))
-        elif stripped.startswith("午") or stripped.startswith("晚"):
+        elif stripped.startswith("午") or stripped.startswith("晚") or stripped.startswith("喝"):
             if section == "schedule":
                 schedule.append(stripped)
         elif section == "asec" and stripped.startswith("^   "):
@@ -791,8 +802,13 @@ def parse_and_display_time(content):
         elif section == "bsec" and stripped.startswith("^   "):
             bsec_entries.append(stripped)
             bsec_total += parse_existing_time(stripped)
+        elif section == "csec" and stripped.startswith("^   "):
+            csec_entries.append(stripped)
+
 
     # 显示结果
+    console.print("[bold underline]TIME logs:[/bold underline]")
+
     console.print("\n[bold underline]Routine:[/bold underline]")
     display_tasks(routine)
 
@@ -809,6 +825,9 @@ def parse_and_display_time(content):
     console.print("\n[bold underline]Bsec:[/bold underline]")
     display_time_entries(bsec_entries)
     display_summary(bsec_total, bsec_target, "Bsec")
+
+    console.print("\n[bold underline]Csec:[/bold underline]")
+    display_time_entries(csec_entries)
 
 
 def parse_and_display_norg(type, content):
